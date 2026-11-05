@@ -633,6 +633,9 @@ impl Mounted {
                 a.iterations
                     .map_or("infinite".to_owned(), |n| n.to_string()),
             );
+            if let Some(hz) = a.frame_rate {
+                out.put("animationFrameRate", num(hz));
+            }
         }
 
         let (text, align) = match self.kind {
