@@ -2580,7 +2580,7 @@ fn event_payload(
                 count: typed.2,
             }
         }
-        EventKind::FileDrop if keys.iter().all(|k| *k == "uris") => EventPayload::FileDrop(
+        EventKind::FileDragEnter | EventKind::FileDrop if keys.iter().all(|k| *k == "uris") => EventPayload::FileDrop(
             fields
                 .into_iter()
                 .map(|(_, f)| match f {
