@@ -16,7 +16,7 @@
 //! - `[props] <name>`, `[events] <name>`: the members of the host elements'
 //!   props interfaces (`nsh/types.d.ts`, `*Props`), handlers (`on…`) being
 //!   events; a platform's props are `ios.<name>`, `android.<name>`,
-//!   `desktop.<name>` and `web.<name>`;
+//!   `macos.<name>`, `desktop.<name>` and `web.<name>`;
 //! - `[props] <Component>.<name>`, `[events] <Component>.<name>`: a
 //!   component's own props, the members of `<Component>Props` in the module
 //!   that exports `<Component>` (`[props] List.header`, `[events]
@@ -93,6 +93,7 @@ const PRIMITIVES: &[(&str, &str, Option<&str>)] = &[
 const PLATFORMS: &[(&str, &str)] = &[
     ("IOS", "ios"),
     ("Android", "android"),
+    ("MacOS", "macos"),
     ("Desktop", "desktop"),
     ("Web", "web"),
 ];

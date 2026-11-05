@@ -42,7 +42,7 @@
 //!   frame, in points relative to its parent (waits for it);
 //! - `prop <selector> <name> <value>`: the first view on screen the
 //!   selector names has host prop `<name>` (its JS name; a platform's props
-//!   with or without their `ios.` / `android.` / `desktop.` / `web.`
+//!   with or without their `ios.` / `android.` / `macos.` / `desktop.` / `web.`
 //!   prefix) at `<value>` as the platform receives it, written as
 //!   compat/values.rs says (waits for it);
 //! - `noprop <selector> <name>`: the view has no such prop, or the value a

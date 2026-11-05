@@ -657,6 +657,13 @@ fn view(out: &mut Decls, style: &Style, default: &Style) {
     out.diff("tintColor", &v.tint_color, &d.tint_color, |c| {
         c.as_ref().map_or("none".into(), color)
     });
+    #[cfg(nsh_has_glass_tint)]
+    out.diff(
+        "glassTintColor",
+        &v.glass_tint_color,
+        &d.glass_tint_color,
+        |c| c.as_ref().map_or("none".into(), color),
+    );
     out.diff("elevation", &v.elevation, &d.elevation, |v| num(*v));
     out.diff(
         "objectPosition",

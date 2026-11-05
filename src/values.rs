@@ -45,7 +45,7 @@ use nsh_core::{
 
 /// The platforms whose props are written `<platform>.<name>` in scripts as
 /// in a script's `covers` step; the platform receives them as `<name>`.
-const PLATFORMS: &[&str] = &["ios.", "android.", "desktop.", "web."];
+const PLATFORMS: &[&str] = &["ios.", "android.", "macos.", "desktop.", "web."];
 
 /// The last mount item of each kind a view got: what the platform shows.
 #[derive(Default, Clone)]
@@ -250,6 +250,26 @@ impl Mounted {
         let style = self.style.as_deref().cloned().unwrap_or_default();
         out.put("elevation", num(style.elevation));
         out.put("backdropMaterial", style.backdrop_material.name().into());
+        #[cfg(nsh_has_macos_backdrop)]
+        if let Some(backdrop) = style.macos_backdrop {
+            let defaults = nsh_core::MacOsBackdrop::default();
+            let mut value = Object::default();
+            value.opt(
+                "material",
+                (backdrop.material != defaults.material)
+                    .then(|| backdrop.material.name().to_owned()),
+            );
+            value.opt(
+                "blending",
+                (backdrop.blending != defaults.blending)
+                    .then(|| backdrop.blending.name().to_owned()),
+            );
+            value.opt(
+                "state",
+                (backdrop.state != defaults.state).then(|| backdrop.state.name().to_owned()),
+            );
+            out.put("backdrop", value.done());
+        }
 
         match self.kind {
             Some(ViewKind::Image) => {
@@ -573,6 +593,10 @@ impl Mounted {
         out.put("filter", filters(&effects.filters));
         out.put("backdropFilter", filters(&effects.backdrop_filters));
         out.put("glassEffect", s.glass_effect.name().into());
+        #[cfg(nsh_has_glass_tint)]
+        if let Some(tint) = s.glass_tint_color {
+            out.put("glassTintColor", color(tint));
+        }
         out.put(
             "maskImage",
             or_none(list(effects.mask_images.iter().map(gradient))),
@@ -1513,4 +1537,46 @@ pub(crate) fn animated(item: Option<&MountItem>) {
         }
         Some(_) => {}
     });
+}
+
+#[cfg(nsh_has_macos_backdrop)]
+#[test]
+fn material_values_distinguish_defaults_from_removal() {
+    let mut view = Mounted {
+        style: Some(Box::new(ViewStyle {
+            macos_backdrop: Some(nsh_core::MacOsBackdrop {
+                material: nsh_core::MacOsBackdropMaterial::HudWindow,
+                blending: nsh_core::MacOsBackdropBlending::BehindWindow,
+                state: nsh_core::MacOsBackdropState::FollowsWindowActiveState,
+            }),
+            ..ViewStyle::default()
+        })),
+        ..Mounted::default()
+    };
+    assert_eq!(key("macos.backdrop"), "backdrop");
+    assert_eq!(
+        view.props()["backdrop"],
+        "material=hud-window blending=behind-window state=follows-window-active-state"
+    );
+    view.style.as_mut().unwrap().macos_backdrop = Some(nsh_core::MacOsBackdrop::default());
+    assert_eq!(view.props()["backdrop"], "{}");
+    view.style.as_mut().unwrap().macos_backdrop = None;
+    assert!(!view.props().contains_key("backdrop"));
+}
+
+#[cfg(nsh_has_glass_tint)]
+#[test]
+fn glass_tint_values_preserve_alpha_and_clear() {
+    let mut view = Mounted {
+        style: Some(Box::new(ViewStyle {
+            glass_tint_color: Some(Color(0xff000080)),
+            ..ViewStyle::default()
+        })),
+        ..Mounted::default()
+    };
+    assert_eq!(view.styles(None)["glassTintColor"], "#ff000080");
+    view.style.as_mut().unwrap().glass_tint_color = Some(Color(0x00ff0040));
+    assert_eq!(view.styles(None)["glassTintColor"], "#00ff0040");
+    view.style.as_mut().unwrap().glass_tint_color = None;
+    assert!(!view.styles(None).contains_key("glassTintColor"));
 }

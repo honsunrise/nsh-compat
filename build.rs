@@ -1,0 +1,21 @@
+use nsh_core::{Prop, Style, StyleValue, element::TsTypes, js::host::HostProps};
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rustc-check-cfg=cfg(nsh_has_macos_backdrop)");
+    println!("cargo:rustc-check-cfg=cfg(nsh_has_glass_tint)");
+
+    // The checker must still compile against NSH checkouts predating these
+    // fields, so detect the public API before referring to their Rust fields.
+    let mut specs = Vec::new();
+    Prop::specs(&mut TsTypes::default(), &mut specs);
+    if specs.iter().any(|spec| spec.name == "backdrop") {
+        println!("cargo:rustc-cfg=nsh_has_macos_backdrop");
+    }
+    if Style::default()
+        .set("glassTintColor", StyleValue::Str("#ff0000"))
+        .is_ok()
+    {
+        println!("cargo:rustc-cfg=nsh_has_glass_tint");
+    }
+}
