@@ -1542,13 +1542,13 @@ pub(crate) fn animated(item: Option<&MountItem>) {
 #[cfg(nsh_has_macos_backdrop)]
 #[test]
 fn material_values_distinguish_defaults_from_removal() {
+    let mut backdrop = nsh_core::MacOsBackdrop::default();
+    backdrop.material = nsh_core::MacOsBackdropMaterial::HudWindow;
+    backdrop.blending = nsh_core::MacOsBackdropBlending::BehindWindow;
+    backdrop.state = nsh_core::MacOsBackdropState::FollowsWindowActiveState;
     let mut view = Mounted {
         style: Some(Box::new(ViewStyle {
-            macos_backdrop: Some(nsh_core::MacOsBackdrop {
-                material: nsh_core::MacOsBackdropMaterial::HudWindow,
-                blending: nsh_core::MacOsBackdropBlending::BehindWindow,
-                state: nsh_core::MacOsBackdropState::FollowsWindowActiveState,
-            }),
+            macos_backdrop: Some(backdrop),
             ..ViewStyle::default()
         })),
         ..Mounted::default()

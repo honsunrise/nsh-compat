@@ -53,6 +53,8 @@ and `style <selector> glassTintColor #ff000080`. Backdrop members at their defau
 an explicitly requested default material is `{}`, while a removed material has no `backdrop` key.
 The build probes NSH's public prop/style APIs before compiling their field formatters, so this checker
 also builds against otherwise supported NSH checkouts that predate macOS backdrops and glass tint.
+Material tests initialize `MacOsBackdrop` from `Default` before assigning fields, so they also compile
+when NSH marks that public configuration `#[non_exhaustive]`.
 
 ## Changing it
 
