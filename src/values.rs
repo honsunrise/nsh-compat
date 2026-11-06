@@ -257,16 +257,16 @@ impl Mounted {
             value.opt(
                 "material",
                 (backdrop.material != defaults.material)
-                    .then(|| backdrop.material.name().to_owned()),
+                    .then(|| backdrop.material.js_name().to_owned()),
             );
             value.opt(
                 "blending",
                 (backdrop.blending != defaults.blending)
-                    .then(|| backdrop.blending.name().to_owned()),
+                    .then(|| backdrop.blending.js_name().to_owned()),
             );
             value.opt(
                 "state",
-                (backdrop.state != defaults.state).then(|| backdrop.state.name().to_owned()),
+                (backdrop.state != defaults.state).then(|| backdrop.state.js_name().to_owned()),
             );
             out.put("backdrop", value.done());
         }
@@ -1556,7 +1556,7 @@ fn material_values_distinguish_defaults_from_removal() {
     assert_eq!(key("macos.backdrop"), "backdrop");
     assert_eq!(
         view.props()["backdrop"],
-        "material=hud-window blending=behind-window state=follows-window-active-state"
+        "material=hudWindow blending=behindWindow state=followsWindowActiveState"
     );
     view.style.as_mut().unwrap().macos_backdrop = Some(nsh_core::MacOsBackdrop::default());
     assert_eq!(view.props()["backdrop"], "{}");

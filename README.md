@@ -48,7 +48,7 @@ The tests:
 `NSH_COMPAT_KEEP_GOING=1` goes on after a failed step at the script's next case (its next `tap id:case-…`) and reports
 the first failure of each case at the end, so one run shows every case that fails.
 
-Material assertions use `prop <selector> macos.backdrop material=hud-window blending=behind-window`
+Material assertions use `prop <selector> macos.backdrop material=hudWindow blending=behindWindow`
 and `style <selector> glassTintColor #ff000080`. Backdrop members at their defaults are omitted;
 an explicitly requested default material is `{}`, while a removed material has no `backdrop` key.
 The build probes NSH's public prop/style APIs before compiling their field formatters, so this checker
