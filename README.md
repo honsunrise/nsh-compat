@@ -13,7 +13,8 @@ releases/v<version>/    one per compatible release, written when it ships and ne
   runtime.txt           every module's exports (`nsh:rt` included) and the globals
   types/                the declarations apps build against
   tailwind.txt          every Tailwind class and what it sets
-  apps/<app>/           the apps of NSH's tests/compat/ as that release built them, with their scripts
+  apps/case-<domain>/   the apps of NSH's tests/compat/ as that release built them, with their scripts:
+  apps/example-<app>/   a case per domain and some examples (a case and an example may share a name)
 closed.txt              what was closed for security, the only removals, each with its reason
 src/                    the checks
 ```
@@ -44,10 +45,11 @@ The tests:
   `closed.txt`;
 - `released_apps_run`: every app each release built still starts and does what its script says.
 
-`NSH_COMPAT_APP=<name>` selects apps whose unqualified name starts with `<name>`; `desktop` selects both its case
-and example. `NSH_COMPAT_DUMP=1` prints the texts each step of a script adds and removes,
-`NSH_COMPAT_KEEP_GOING=1` goes on after a failed step at the script's next case (its next `tap id:case-…`) and reports
-the first failure of each case at the end, so one run shows every case that fails.
+`NSH_COMPAT_APP=<name>` runs the apps whose name starts so, by their name (`desktop`: its case and its example) or
+by the name a failure reports (`case-desktop`); a name that selects no app is an error. `NSH_COMPAT_DUMP=1` prints
+the texts each step of a script adds and removes, `NSH_COMPAT_KEEP_GOING=1` goes on after a failed step at the
+script's next case (its next `tap id:case-…`) and reports the first failure of each case at the end, so one run shows
+every case that fails.
 
 Cases and examples build concurrently into separate `case-<name>` and `example-<name>` directories. Each owns
 its `.build` staging directory, so equally named apps cannot overwrite each other's bundle, metadata or script.

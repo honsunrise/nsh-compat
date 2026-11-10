@@ -7,8 +7,9 @@
 //!   once when it shipped ([`record`]) and never changed: `runtime.txt`
 //!   (every module's exports and the globals), `types/` (the declarations
 //!   apps build against), `tailwind.txt` (every class and what it sets) and
-//!   `apps/<app>/`, the apps it tested, as its compiler built them, with
-//!   the script of what a user does and sees in each.
+//!   `apps/case-<domain>/` and `apps/example-<app>/`, the apps it tested
+//!   (a case and an example may share a name), as its compiler built them,
+//!   with the script of what a user does and sees in each.
 //! - `closed.txt`: what was closed for security, the only removals.
 //!
 //! The checkout under test is `../nsh` (`NSH_DIR` names another), its
@@ -220,9 +221,9 @@ impl CheckoutApp {
     }
 }
 
-/// The checkout's apps (`NSH_COMPAT_APP=<name>`: those whose name starts
-/// so).
-fn checkout_apps() -> Vec<CheckoutApp> {
+/// The checkout's apps (`NSH_COMPAT_APP=<name>`: those whose name or
+/// build name starts so, [`select`]).
+fn checkout_apps() -> Result<Vec<CheckoutApp>, String> {
     let nsh = nsh_dir();
     let tests = nsh.join("tests/compat");
     let mut out = Vec::new();
@@ -257,13 +258,35 @@ fn checkout_apps() -> Vec<CheckoutApp> {
             script,
         });
     }
-    assert!(
-        !out.is_empty(),
-        "no apps under {}: is NSH_DIR an NSH checkout?",
-        tests.display()
-    );
-    out.retain(|a| std::env::var("NSH_COMPAT_APP").map_or(true, |only| a.name.starts_with(&only)));
-    out
+    if out.is_empty() {
+        return Err(format!(
+            "no apps under {}: is NSH_DIR an NSH checkout?",
+            tests.display()
+        ));
+    }
+    select(out, std::env::var("NSH_COMPAT_APP").ok().as_deref())
+}
+
+/// The apps `only` selects: those whose name (`desktop`, both the case and
+/// the example) or build name (`case-desktop`, the one a failure names)
+/// starts so; every app without it. Selecting nothing is an error, so a
+/// misspelled name does not end in an empty run.
+fn select(apps: Vec<CheckoutApp>, only: Option<&str>) -> Result<Vec<CheckoutApp>, String> {
+    let Some(only) = only else {
+        return Ok(apps);
+    };
+    let names: Vec<String> = apps.iter().map(CheckoutApp::build_name).collect();
+    let selected: Vec<_> = apps
+        .into_iter()
+        .filter(|a| a.name.starts_with(only) || a.build_name().starts_with(only))
+        .collect();
+    if selected.is_empty() {
+        return Err(format!(
+            "NSH_COMPAT_APP={only} selects no app; the apps are {}",
+            names.join(", ")
+        ));
+    }
+    Ok(selected)
 }
 
 /// The files of a build an app runs with; the rest (`bundle.nshc`, source
@@ -273,8 +296,7 @@ const BUILD_FILES: [&str; 3] = ["bundle.js", "capabilities.json", "app.json"];
 /// Builds `app` with the checkout's `nsh build --release` into `out`, as an
 /// app runs it: its bundle, the capabilities and id it declares, its assets
 /// and its script.
-fn build(app: &CheckoutApp, out: &Path) -> Result<(), String> {
-    let bin = nsh_bin();
+fn build(app: &CheckoutApp, bin: &Path, out: &Path) -> Result<(), String> {
     if !bin.is_file() {
         return Err(format!(
             "{} is missing: build the checkout's command line (`cargo build -p nsh-cli` in {}), \
@@ -285,7 +307,7 @@ fn build(app: &CheckoutApp, out: &Path) -> Result<(), String> {
     }
     let staging = out.join(".build");
     let _ = std::fs::remove_dir_all(out);
-    let built = Command::new(&bin)
+    let built = Command::new(bin)
         .args(["build", "--release", "-o"])
         .arg(&staging)
         .arg(&app.source)
@@ -321,10 +343,20 @@ fn copy_dir(from: &Path, to: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Builds cases and examples into separate `root/case-<app>/` and
-/// `root/example-<app>/` directories; the directories built, or what failed.
+/// Builds the checkout's apps into `root/case-<app>/` and
+/// `root/example-<app>/`, side by side; the directories built, or what
+/// failed.
 fn build_checkout_apps(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
-    let apps = checkout_apps();
+    build_apps(&checkout_apps()?, &nsh_bin(), root)
+}
+
+/// Builds `apps` with `bin` into `root/<build name>/`, at once; the
+/// directories built, or what failed.
+fn build_apps(
+    apps: &[CheckoutApp],
+    bin: &Path,
+    root: &Path,
+) -> Result<Vec<(String, PathBuf)>, String> {
     let results: Vec<_> = std::thread::scope(|s| {
         let runs: Vec<_> = apps
             .iter()
@@ -332,7 +364,7 @@ fn build_checkout_apps(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
                 s.spawn(move || {
                     let name = app.build_name();
                     let dir = root.join(&name);
-                    build(app, &dir)
+                    build(app, bin, &dir)
                         .map_err(|e| format!("{name}: {e}"))
                         .map(|()| (name, dir))
                 })
@@ -401,7 +433,7 @@ pub fn record(version: &str) -> Result<PathBuf, String> {
 pub fn checkout_apps_run() -> Result<(), String> {
     let root = work_dir().join("checkout");
     if root.exists() {
-        std::fs::remove_dir_all(&root).map_err(|e| e.to_string())?;
+        std::fs::remove_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
     }
     let built = build_checkout_apps(&root)?;
     let failed = run_apps(&built);
@@ -479,20 +511,84 @@ pub fn any_release() -> bool {
 mod tests {
     use super::*;
 
-    #[test]
-    fn case_and_example_build_names_do_not_collide() {
-        let mut names = std::collections::HashSet::new();
-        for name in ["desktop", "example-desktop", "desktop.build"] {
-            for example in [false, true] {
-                let app = CheckoutApp {
-                    name: name.into(),
-                    example,
-                    source: PathBuf::new(),
-                    script: PathBuf::new(),
-                };
-                assert!(names.insert(app.build_name()));
-            }
+    fn app(name: &str, example: bool) -> CheckoutApp {
+        CheckoutApp {
+            name: name.into(),
+            example,
+            source: PathBuf::new(),
+            script: PathBuf::new(),
         }
+    }
+
+    /// A case and an example of one name, built at once, land in two
+    /// directories, each with its own bundle and script.
+    #[cfg(unix)]
+    #[test]
+    fn equally_named_case_and_example_build_apart() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = work_dir().join("build-apart");
+        let _ = std::fs::remove_dir_all(&dir);
+        // A stand-in `nsh build --release -o <out> <source>`: a bundle
+        // naming its source.
+        let bin = dir.join("nsh");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            &bin,
+            "#!/bin/sh\nmkdir -p \"$4\" && echo \"$5\" > \"$4/bundle.js\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let apps: Vec<_> = [false, true]
+            .into_iter()
+            .map(|example| {
+                let kind = if example { "example" } else { "case" };
+                let mut app = app("desktop", example);
+                app.source = dir.join("src").join(kind);
+                app.script = dir.join(format!("{kind}.txt"));
+                std::fs::write(&app.script, kind).unwrap();
+                app
+            })
+            .collect();
+        let built = build_apps(&apps, &bin, &dir.join("out")).unwrap();
+        assert_eq!(built.len(), 2);
+        assert_ne!(built[0].1, built[1].1);
+        for ((_, out), kind) in built.iter().zip(["case", "example"]) {
+            let read = |file: &str| std::fs::read_to_string(out.join(file)).unwrap();
+            assert_eq!(read("script.txt"), kind);
+            assert!(
+                read("bundle.js").trim_end().ends_with(kind),
+                "{}",
+                out.display()
+            );
+            assert!(!out.join(".build").exists());
+        }
+    }
+
+    #[test]
+    fn apps_are_selected_by_name_or_build_name() {
+        let apps = || {
+            vec![
+                app("desktop", false),
+                app("desktop", true),
+                app("core", false),
+            ]
+        };
+        let names = |only| {
+            select(apps(), only).map(|a| a.iter().map(CheckoutApp::build_name).collect::<Vec<_>>())
+        };
+        assert_eq!(names(None).unwrap().len(), 3);
+        assert_eq!(
+            names(Some("desk")).unwrap(),
+            ["case-desktop", "example-desktop"]
+        );
+        assert_eq!(names(Some("case-desktop")).unwrap(), ["case-desktop"]);
+        assert_eq!(names(Some("example-")).unwrap(), ["example-desktop"]);
+        let none = names(Some("dekstop")).unwrap_err();
+        assert!(
+            none.contains("selects no app") && none.contains("case-core"),
+            "{none}"
+        );
     }
 
     #[test]

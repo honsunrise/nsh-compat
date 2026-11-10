@@ -226,7 +226,8 @@
 //! `blur()` on the root leaves it).
 //!
 //! Any error the app reports fails the script. `NSH_COMPAT_APP=<name>`
-//! runs the apps whose name starts so; `NSH_COMPAT_DUMP=1` prints the
+//! runs the apps whose name (`desktop`) or build name (`case-desktop`)
+//! starts so; `NSH_COMPAT_DUMP=1` prints the
 //! texts on screen after each step, for writing scripts;
 //! `NSH_COMPAT_KEEP_GOING=1` goes on after a failed step at the script's
 //! next case (its next `tap id:case-…`) instead of ending the run, and
