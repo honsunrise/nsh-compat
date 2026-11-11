@@ -8,6 +8,8 @@
 //! JS vocabulary, one explicit line per key, never a Rust `Debug`. This
 //! file's output is part of what the fixtures hold: change a key's form
 //! only by adding a new key.
+//! WebView inspection is reported from the mounted `inspectable` boolean,
+//! so fixture steps can check its default and reactive changes.
 //!
 //! Value forms:
 //!
@@ -455,6 +457,7 @@ impl Mounted {
                     w.back_forward_gestures.to_string(),
                 );
                 out.put("incognito", w.incognito.to_string());
+                out.put("inspectable", w.inspectable.to_string());
             }
             Some(ViewKind::Video) => {
                 let v = match &self.native {
